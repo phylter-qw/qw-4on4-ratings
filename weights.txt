@@ -1,0 +1,112 @@
+2025-03-28
+
+How important is it to get frags?
+7.5
+
+How important is it to have more frags than deaths?
+7.786
+
+How important is it to minimize teamkills?
+4.429
+
+How important is it to maximize player efficiency?
+7.385
+
+How important is it to maximize RL accuracy?
+4.714
+
+How important is it to maximize LG accuracy?
+5.615
+
+How important is it to maximize GL accuracy?
+2.571
+
+How important is it to maximize SG accuracy?
+6.286
+
+How important is it to maximize SSG accuracy?
+4.357
+
+How important is it to maximize RL damage?
+5.571
+
+How important is it to maximize direct RL hits?
+3.071
+
+How important is it to collect green armors?
+4.429
+
+How important is it to collect yellow armors?
+6.571
+
+How important is it to collect red armors?
+8.643
+
+How important is it to collect megas?
+6.214
+
+How important is it to take fresh RLs?
+6.857
+
+How important is it to kill enemy RLs?
+8.643
+
+How important is it to minimize the number of RLs dropped (not transferred)?
+7.571
+
+How important is it to maximize the number of RLs transferred (after dropping)?
+5.786
+
+How important is it to take fresh LGs?
+6.571
+
+How important is it to kill enemy LGs?
+7.571
+
+How important is it to maximize LG damage?
+5.692
+
+How important is it to minimize the number of LGs dropped?
+6.714
+
+How important is it to maximize the number of LGs transferred (after dropping)?
+5.143
+
+How important is it to minimze damage taken?
+4.429
+
+How important is it to maximize damage given?
+8.143
+
+How important is it to maximize EWEP?
+7.571
+
+How important is it to minimze team damage?
+4.714
+
+How important is it to minimize self damage?
+3.429
+
+How important is it to maximize ToDie?
+6.214
+
+How important is it to take quads?
+8.286
+
+How important is it to take pents?
+8.286
+
+How important is it to take rings?
+5.154
+
+How important are long frag streaks?
+4.5
+
+How important are quad runs with many kills?
+4.429
+
+How important is it to get spawn frags?
+5.429
+
+How important is it to have low ping?
+6.308

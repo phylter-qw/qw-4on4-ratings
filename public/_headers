@@ -1,0 +1,6 @@
+/data.json.gz
+  Content-Type: application/json
+  Content-Encoding: gzip
+/4on4.db.gz
+  Content-Type: application/octet-stream
+  Content-Encoding: gzip

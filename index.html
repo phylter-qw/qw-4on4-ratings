@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuakeWorld 4on4 Ratings</title>
+    <style>
+        /* Prevent mobile browsers from auto-adjusting text size */
+        html, body, table, th, td {
+            -moz-text-size-adjust: none;
+            -webkit-text-size-adjust: none;
+            text-size-adjust: none;
+        }
+
+        :root {
+            --header-bg: #2c3e50;
+            --header-text: #ecf0f1;
+            --main-bg: #f5f5f5;
+            --table-header-bg: #34495e;
+            --table-header-text: #ecf0f1;
+            --table-row-odd: #f9f9f9;
+            --table-row-even: #ffffff;
+            --table-border: #ddd;
+            --region-title-bg: #3498db;
+            --region-title-text: white;
+            --gold-color: #FFD700;
+            --yellow-color: #FFFF00;
+            --red-color: #FF0000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background-color: var(--main-bg);
+            color: #333;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+        }
+
+        header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .last-update {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+        }
+
+        .filter-group label {
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+
+        .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .region-table-container {
+            margin-bottom: 2rem;
+        }
+
+        .region-name {
+            background-color: var(--region-title-bg);
+            color: var(--region-title-text);
+            padding: 0.5rem 1rem;
+            border-radius: 4px 4px 0 0;
+            font-weight: bold;
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto; /* Allow horizontal scrolling within tables */
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background-color: white;
+            table-layout: fixed; /* Force a fixed layout for consistent column widths */
+        }
+
+        th {
+            background-color: var(--table-header-bg);
+            color: var(--table-header-text);
+            padding: 0.75rem;
+            text-align: left;
+            cursor: pointer;
+            position: relative;
+        }
+
+        /* First column header is left-aligned */
+        th:first-child {
+            text-align: left;
+        }
+
+        /* Non-first column headers are right-aligned */
+        th:not(:first-child) {
+            text-align: right;
+            padding-right: 0.75rem; /* Same padding as other sides when no arrow */
+        }
+
+        /* Only add extra padding when the sort arrow is active */
+        th.active:not(:first-child) {
+            padding-right: 1.5rem; /* Extra padding for the arrow */
+        }
+
+        /* Arrow for all headers */
+        th.active::after {
+            content: '▲';
+            position: absolute;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        /* Arrow positioning for left-aligned headers */
+        th.active:first-child::after {
+            margin-left: 6px;
+        }
+
+        /* Arrow positioning for right-aligned headers */
+        th.active:not(:first-child)::after {
+            right: 8px;
+        }
+
+        /* Down arrow */
+        th.active.desc::after {
+            content: '▼';
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--table-border);
+            word-wrap: break-word;
+        }
+
+        tr:nth-child(odd) {
+            background-color: var(--table-row-odd);
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--table-row-even);
+        }
+
+        /* First cell is left-aligned */
+        td:first-child {
+            text-align: left;
+        }
+
+        /* Non-first cells are right-aligned */
+        td:not(:first-child) {
+            text-align: right;
+        }
+
+        .monospace {
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .gold {
+            color: var(--gold-color);
+        }
+
+        .yellow {
+            color: var(--yellow-color);
+        }
+
+        .red {
+            color: var(--red-color);
+        }
+
+        /* Styles for the player name toggle */
+        .player-toggle {
+            cursor: pointer;
+        }
+        .player-toggle.truncated {
+            display: inline-block;
+            max-width: 20ch;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Responsive adjustments for tables and filters */
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .filter-group {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            th, td {
+                padding: 0.5rem 0.25rem;
+                font-size: 0.9rem;
+            }
+
+            /* Keep right justification on mobile */
+            th:not(:first-child) {
+                padding-right: 0.25rem; /* Default padding */
+            }
+
+            /* Add space for arrow when active */
+            th.active:not(:first-child) {
+                padding-right: 1.2rem;
+            }
+
+            /* Arrow position on mobile */
+            th.active:not(:first-child)::after {
+                right: 4px;
+            }
+
+            /* New adjustments for header on mobile */
+            header {
+                padding: 0.5rem;
+            }
+            h1 {
+                font-size: 1.2rem;
+                margin-bottom: 0.25rem;
+            }
+            .last-update {
+                font-size: 0.7rem;
+                margin-bottom: 0.5rem;
+            }
+            .filters {
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>QuakeWorld 4on4 Ratings</h1>
+            <div class="last-update" id="lastUpdate">Last updated on...</div>
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="regionFilter">Region Filter:</label>
+                    <input type="text" id="regionFilter" placeholder="Region regex pattern">
+                </div>
+                <div class="filter-group">
+                    <label for="playerFilter">Player Filter:</label>
+                    <input type="text" id="playerFilter" placeholder="Player regex pattern">
+                </div>
+                <div class="filter-group">
+                    <label for="matchesMinFilter">Matches Minimum:</label>
+                    <input type="number" id="matchesMinFilter" min="1" value="50">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main id="content">
+        <!-- Region tables will be dynamically inserted here -->
+        <div class="loading">Loading data...</div>
+    </main>
+
+    <script>
+        // Global state
+        let globalData = null;
+        let currentSortColumn = 'rating';
+        let currentSortDirection = 'desc';
+
+        // Load data and initialize the application
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+            setupEventListeners();
+        });
+
+        // Fetch and process the data
+        async function fetchData() {
+            try {
+                const response = await fetch('data.json.gz');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                globalData = await response.json();
+                updateLastUpdateTimestamp();
+                renderTables();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.querySelector('main').innerHTML = `
+                    <div class="error">
+                        <p>Error loading data. Please try again later.</p>
+                        <p>Error details: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Set up event listeners for filters and sorting
+        function setupEventListeners() {
+            // Filter change events
+            document.getElementById('regionFilter').addEventListener('input', renderTables);
+            document.getElementById('playerFilter').addEventListener('input', renderTables);
+            document.getElementById('matchesMinFilter').addEventListener('input', renderTables);
+        }
+
+        // Update timestamp from data
+        function updateLastUpdateTimestamp() {
+            if (!globalData || !globalData.timestamp) return;
+
+            const timestamp = new Date(globalData.timestamp);
+            const options = {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                //second: '2-digit',
+                //timeZoneName: 'short'
+            };
+
+            document.getElementById('lastUpdate').textContent =
+                `Last updated on ${timestamp.toLocaleDateString(undefined, options)}`;
+        }
+
+        // Render all region tables based on current filters
+        function renderTables() {
+            if (!globalData) return;
+
+            const contentElement = document.getElementById('content');
+            contentElement.innerHTML = ''; // Clear previous content
+
+            const regionFilter = document.getElementById('regionFilter').value;
+            const playerFilter = document.getElementById('playerFilter').value;
+            const matchesMinFilter = parseInt(document.getElementById('matchesMinFilter').value) || 1;
+
+            let validRegionFilter = true;
+            let regionFilterRegex;
+
+            try {
+                regionFilterRegex = regionFilter ? new RegExp(regionFilter, 'i') : null;
+            } catch (e) {
+                validRegionFilter = false;
+            }
+
+            let validPlayerFilter = true;
+            let playerFilterRegex;
+
+            try {
+                playerFilterRegex = playerFilter ? new RegExp(playerFilter, 'i') : null;
+            } catch (e) {
+                validPlayerFilter = false;
+            }
+
+            // Filter and render each region
+            globalData.regions.forEach(region => {
+                // Check if region passes the region filter
+                if (regionFilter && validRegionFilter && !regionFilterRegex.test(region.name)) {
+                    return; // Skip this region
+                }
+
+                // Filter players based on criteria
+                const filteredRatings = region.ratings.filter(player => {
+                    const [playerName, rating, plusMinus, matches] = player;
+
+                    // Filter by matches minimum
+                    if (matches < matchesMinFilter) {
+                        return false;
+                    }
+
+                    // Filter by player name if filter is valid
+                    if (playerFilter && validPlayerFilter) {
+                        // Remove control sequences before matching
+                        const cleanName = playerName.replace(/\\[1-5]/g, '');
+                        return playerFilterRegex.test(cleanName);
+                    }
+
+                    return true;
+                });
+
+                // Skip empty regions
+                if (filteredRatings.length === 0) {
+                    return;
+                }
+
+                // Sort the filtered ratings
+                const sortedRatings = sortRatings(filteredRatings);
+
+                // Create and append the region table
+                const tableHTML = createRegionTable(region.name, sortedRatings);
+                contentElement.innerHTML += tableHTML;
+            });
+
+            // Set up sort column click handlers after rendering
+            setupSortHandlers();
+
+            // Set up player name toggling for abbreviating long names
+            setupPlayerToggle();
+
+            // Display message if no tables were rendered
+            if (contentElement.innerHTML === '') {
+                contentElement.innerHTML = '<div class="no-results">No matching data found.</div>';
+            }
+        }
+
+        // Sort ratings based on current sort column and direction
+        function sortRatings(ratings) {
+            const columnMap = {
+                'player': 0,
+                'rating': 1,
+                'plusMinus': 2,
+                'matches': 3
+            };
+
+            const columnIndex = columnMap[currentSortColumn];
+
+            return [...ratings].sort((a, b) => {
+                let aValue = a[columnIndex];
+                let bValue = b[columnIndex];
+
+                // For player names, remove control sequences before sorting
+                if (columnIndex === 0) {
+                    aValue = aValue.replace(/\\[1-5]/g, '');
+                    bValue = bValue.replace(/\\[1-5]/g, '');
+                }
+
+                // Sort based on type
+                if (columnIndex === 0) {
+                    // Lexicographic sort for players
+                    const comparison = aValue.localeCompare(bValue);
+                    return currentSortDirection === 'asc' ? comparison : -comparison;
+                } else {
+                    // Numeric sort for other columns
+                    const comparison = aValue - bValue;
+                    return currentSortDirection === 'asc' ? comparison : -comparison;
+                }
+            });
+        }
+
+        // Create HTML for a region table
+        function createRegionTable(regionName, ratings) {
+            let html = `
+                <div class="region-table-container">
+                    <div class="region-name">${escapeHtml(regionName)}</div>
+                    <div class="table-responsive">
+                        <table>
+                            <colgroup>
+                                <col style="width: 40%;">
+                                <col style="width: 20%;">
+                                <col style="width: 20%;">
+                                <col style="width: 20%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th data-column="player" class="${currentSortColumn === 'player' ? 'active' + (currentSortDirection === 'desc' ? ' desc' : '') : ''}">Player</th>
+                                    <th data-column="rating" class="${currentSortColumn === 'rating' ? 'active' + (currentSortDirection === 'desc' ? ' desc' : '') : ''}">Rating</th>
+                                    <th data-column="plusMinus" class="${currentSortColumn === 'plusMinus' ? 'active' + (currentSortDirection === 'desc' ? ' desc' : '') : ''}">+/-</th>
+                                    <th data-column="matches" class="${currentSortColumn === 'matches' ? 'active' + (currentSortDirection === 'desc' ? ' desc' : '') : ''}">Matches</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            ratings.forEach(player => {
+                const [playerName, rating, plusMinus, matches] = player;
+
+                html += `
+                    <tr>
+                        <td>${formatPlayerName(playerName)}</td>
+                        <td>${rating}</td>
+                        <td>${plusMinus}</td>
+                        <td>${matches}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            return html;
+        }
+
+        // Format player names according to the specified rules and wrap in a toggle span
+        function formatPlayerName(name) {
+            // Replace color codes
+            let formattedName = name
+                .replace(/\\1(.)/g, '<span class="gold">$1</span>')
+                .replace(/\\2(.)/g, '<span class="gold">$1</span>')
+                .replace(/\\3(.)/g, '<span class="yellow">$1</span>')
+                .replace(/\\4(.)/g, '<span class="yellow">$1</span>')
+                .replace(/\\5(.)/g, '<span class="red">$1</span>');
+            // Replace hex codes with monospace
+            formattedName = formattedName.replace(/\\x([0-9A-Fa-f]{2})/g,
+                '<span class="monospace">\\x$1</span>');
+            return `<span class="player-toggle">${formattedName}</span>`;
+        }
+
+        // Set up sort column click handlers
+        function setupSortHandlers() {
+            document.querySelectorAll('th[data-column]').forEach(header => {
+                header.addEventListener('click', () => {
+                    const column = header.getAttribute('data-column');
+
+                    // If clicking the same column, toggle direction
+                    if (column === currentSortColumn) {
+                        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        // New column, set default direction
+                        currentSortColumn = column;
+                        currentSortDirection = 'desc';
+                    }
+
+                    renderTables();
+                });
+            });
+        }
+
+        // Set up toggle functionality for player names that exceed 20 characters
+        function setupPlayerToggle() {
+            document.querySelectorAll('.player-toggle').forEach(el => {
+                // Check the text content length (ignoring HTML tags)
+                if (el.innerText.length > 20) {
+                    el.classList.add('truncated');
+                } else {
+                    el.classList.remove('truncated');
+                }
+                // Toggle the 'truncated' class on click to expand or collapse the name
+                el.addEventListener('click', function() {
+                    el.classList.toggle('truncated');
+                });
+            });
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+4on4.db
+bin
+dist
+include
+lib
+lib64
+.netlify
+node_modules
+package-lock.json
+public/*
+!public/_headers
+pyvenv.cfg
