@@ -9,4 +9,5 @@ node_modules
 package-lock.json
 public/*
 !public/_headers
+!public/favicon.svg
 pyvenv.cfg
