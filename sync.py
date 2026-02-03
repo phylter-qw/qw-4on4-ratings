@@ -881,121 +881,121 @@ def scorer(database, server_region):
         score = 0
 
         # How important is it to get frags?
-        score = score + zscore(player.frags, 'frags') * 7.5
+        score = score + zscore(player.frags, 'frags') * 7.313
 
         # How important is it to have more frags than deaths?
-        score = score + zscore(player.frags - player.deaths, 'frags_minus_deaths') * 7.786
+        score = score + zscore(player.frags - player.deaths, 'frags_minus_deaths') * 7.938
 
         # How important is it to minimize teamkills?
-        score = score - zscore(player.teamkills, 'teamkills') * 4.429
+        score = score - zscore(player.teamkills, 'teamkills') * 4.813
 
         # How important is it to maximize player efficiency?
         if player.frags + player.deaths != 0:
-            score = score + zscore(player.frags / (player.frags + player.deaths), 'efficiency') * 7.385
+            score = score + zscore(player.frags / (player.frags + player.deaths), 'efficiency') * 6.867
 
         # How important is it to maximize RL accuracy?
         if player.rl_attacks != 0:
-            score = score + zscore(player.rl_virtual / player.rl_attacks, 'rl_accuracy') * 4.714
+            score = score + zscore(player.rl_virtual / player.rl_attacks, 'rl_accuracy') * 5.125
 
         # How important is it to maximize LG accuracy?
         if player.lg_attacks != 0:
-            score = score + zscore(player.lg_hits / player.lg_attacks, 'lg_accuracy') * 5.615
+            score = score + zscore(player.lg_hits / player.lg_attacks, 'lg_accuracy') * 6.267
 
         # How important is it to maximize GL accuracy?
         if player.gl_attacks != 0:
-            score = score + zscore(player.gl_virtual / player.gl_attacks, 'gl_accuracy') * 2.571
+            score = score + zscore(player.gl_virtual / player.gl_attacks, 'gl_accuracy') * 2.688
 
         # How important is it to maximize SG accuracy?
         if player.sg_attacks != 0:
-            score = score + zscore(player.sg_hits / player.sg_attacks, 'sg_accuracy') * 6.286
+            score = score + zscore(player.sg_hits / player.sg_attacks, 'sg_accuracy') * 6.5
 
         # How important is it to maximize SSG accuracy?
         if player.ssg_attacks != 0:
-            score = score + zscore(player.ssg_hits / player.ssg_attacks, 'ssg_accuracy') * 4.357
+            score = score + zscore(player.ssg_hits / player.ssg_attacks, 'ssg_accuracy') * 4.938
 
         # How important is it to maximize RL damage?
-        score = score + zscore(player.rl_damage_enemy, 'rl_damage_enemy') * 5.571
-
-        # How important is it to maximize direct RL hits?
-        score = score + zscore(player.rl_directs, 'rl_directs') * 3.071
-
-        # How important is it to collect green armors?
-        score = score + zscore(player.ga_taken, 'ga_taken') * 4.429
-
-        # How important is it to collect yellow armors?
-        score = score + zscore(player.ya_taken, 'ya_taken') * 6.571
-
-        # How important is it to collect red armors?
-        score = score + zscore(player.ra_taken, 'ra_taken') * 8.643
-
-        # How important is it to collect megas?
-        score = score + zscore(player.health100_taken, 'health100_taken') * 6.214
-
-        # How important is it to take fresh RLs?
-        score = score + zscore(player.rl_taken, 'rl_taken') * 6.857
-
-        # How important is it to kill enemy RLs?
-        score = score + zscore(player.rl_kills_enemy, 'rl_kills_enemy') * 8.643
-
-        # How important is it to minimize the number of RLs dropped (not transferred)?
-        score = score - zscore(player.rl_dropped, 'rl_dropped') * 7.571
-
-        # How important is it to maximize the number of RLs transferred (after dropping)?
-        score = score + zscore(player.rl_transfer, 'rl_transfer') * 5.786
-
-        # How important is it to take fresh LGs?
-        score = score + zscore(player.lg_taken, 'lg_taken') * 6.571
-
-        # How important is it to kill enemy LGs?
-        score = score + zscore(player.lg_kills_enemy, 'lg_kills_enemy') * 7.571
+        score = score + zscore(player.rl_damage_enemy, 'rl_damage_enemy') * 5.625
 
         # How important is it to maximize LG damage?
-        score = score + zscore(player.lg_damage_enemy, 'lg_damage_enemy') * 5.692
+        score = score + zscore(player.lg_damage_enemy, 'lg_damage_enemy') * 5.8
+
+        # How important is it to maximize direct RL hits?
+        score = score + zscore(player.rl_directs, 'rl_directs') * 3.188
+
+        # How important is it to collect green armors?
+        score = score + zscore(player.ga_taken, 'ga_taken') * 4.625
+
+        # How important is it to collect yellow armors?
+        score = score + zscore(player.ya_taken, 'ya_taken') * 6.813
+
+        # How important is it to collect red armors?
+        score = score + zscore(player.ra_taken, 'ra_taken') * 8.875
+
+        # How important is it to collect megas?
+        score = score + zscore(player.health100_taken, 'health100_taken') * 6.438
+
+        # How important is it to take fresh RLs?
+        score = score + zscore(player.rl_taken, 'rl_taken') * 7.438
+
+        # How important is it to kill enemy RLs?
+        score = score + zscore(player.rl_kills_enemy, 'rl_kills_enemy') * 8.875
+
+        # How important is it to minimize the number of RLs dropped (not transferred)?
+        score = score - zscore(player.rl_dropped, 'rl_dropped') * 7.75
+
+        # How important is it to maximize the number of RLs transferred (after dropping)?
+        score = score + zscore(player.rl_transfer, 'rl_transfer') * 6.5
+
+        # How important is it to take fresh LGs?
+        score = score + zscore(player.lg_taken, 'lg_taken') * 7.125
+
+        # How important is it to kill enemy LGs?
+        score = score + zscore(player.lg_kills_enemy, 'lg_kills_enemy') * 7.813
 
         # How important is it to minimize the number of LGs dropped?
-        score = score - zscore(player.lg_dropped, 'lg_dropped') * 6.714
+        score = score - zscore(player.lg_dropped, 'lg_dropped') * 7
 
         # How important is it to maximize the number of LGs transferred (after dropping)?
-        score = score + zscore(player.lg_transfer, 'lg_transfer') * 5.143
+        score = score + zscore(player.lg_transfer, 'lg_transfer') * 5.688
 
         # How important is it to minimze damage taken?
-        score = score - zscore(player.damage_taken, 'damage_taken') * 4.429
+        score = score - zscore(player.damage_taken, 'damage_taken') * 4.875
 
         # How important is it to maximize damage given?
-        score = score + zscore(player.damage_given, 'damage_given') * 8.143
+        score = score + zscore(player.damage_given, 'damage_given') * 7.938
 
         # How important is it to maximize EWEP?
-        score = score + zscore(player.damage_enemy_weapons, 'damage_enemy_weapons') * 7.571
+        score = score + zscore(player.damage_enemy_weapons, 'damage_enemy_weapons') * 7.5
 
         # How important is it to minimze team damage?
-        score = score - zscore(player.damage_team, 'damage_team') * 4.714
+        score = score - zscore(player.damage_team, 'damage_team') * 4.875
 
         # How important is it to minimize self damage?
-        score = score - zscore(player.damage_self, 'damage_self') * 3.429
+        score = score - zscore(player.damage_self, 'damage_self') * 3.625
 
         # How important is it to maximize ToDie?
-        score = score + zscore(player.damage_to_die, 'damage_to_die') * 6.214
+        score = score + zscore(player.damage_to_die, 'damage_to_die') * 6.125
 
         # How important is it to take quads?
-        score = score + zscore(player.quad_taken, 'quad_taken') * 8.286
+        score = score + zscore(player.quad_taken, 'quad_taken') * 8.438
 
         # How important is it to take pents?
-        score = score + zscore(player.pent_taken, 'pent_taken') * 8.286
-
-        # How important is it to take rings?
-        score = score + zscore(player.ring_taken, 'ring_taken') * 5.154
+        score = score + zscore(player.pent_taken, 'pent_taken') * 8.75
 
         # How important are long frag streaks?
-        score = score + zscore(player.spree_frag, 'spree_frag') * 4.5
+        score = score + zscore(player.spree_frag, 'spree_frag') * 4.625
 
         # How important are quad runs with many kills?
-        score = score + zscore(player.spree_quad, 'spree_quad') * 4.429
+        score = score + zscore(player.spree_quad, 'spree_quad') * 4.688
 
         # How important is it to get spawn frags?
-        score = score + zscore(player.spawnfrags, 'spawnfrags') * 5.429
+        score = score + zscore(player.spawnfrags, 'spawnfrags') * 5.625
+
+        # How important is it to take rings?
+        score = score + zscore(player.ring_taken, 'ring_taken') * 5.6
 
         # How important is it to have low ping?
-        score = score + zscore(player.ping, 'ping') * 6.308
+        score = score + zscore(player.ping, 'ping') * 6.8
 
         # Final result.
         return score
