@@ -270,12 +270,12 @@ STATS = {
     'frags': 'player_frags',
     'frags_minus_deaths': 'player_frags - player_deaths',
     'teamkills': 'player_teamkills',
-    'efficiency': 'iif(player_frags + player_deaths != 0, player_frags / CAST(player_frags + player_deaths AS REAL), 0)',
-    'rl_accuracy': 'iif(player_rl_attacks != 0, CAST(player_rl_virtual AS REAL) / player_rl_attacks, 0)',
-    'lg_accuracy': 'iif(player_lg_attacks != 0, CAST(player_lg_hits AS REAL) / player_lg_attacks, 0)',
-    'gl_accuracy': 'iif(player_gl_attacks != 0, CAST(player_gl_virtual AS REAL) / player_gl_attacks, 0)',
-    'sg_accuracy': 'iif(player_sg_attacks != 0, CAST(player_sg_hits AS REAL) / player_sg_attacks, 0)',
-    'ssg_accuracy': 'iif(player_ssg_attacks != 0, CAST(player_ssg_hits AS REAL) / player_ssg_attacks, 0)',
+    'efficiency': 'iif(player_frags + player_deaths != 0, max(0, cast(player_frags as real) / (player_frags + player_deaths)), 0)',
+    'rl_accuracy': 'iif(player_rl_attacks != 0, min(1, cast(player_rl_virtual as real) / player_rl_attacks), 0)',
+    'lg_accuracy': 'iif(player_lg_attacks != 0, min(1, cast(player_lg_hits as real) / player_lg_attacks), 0)',
+    'gl_accuracy': 'iif(player_gl_attacks != 0, min(1, cast(player_gl_virtual as real) / player_gl_attacks), 0)',
+    'sg_accuracy': 'iif(player_sg_attacks != 0, min(1, cast(player_sg_hits as real) / player_sg_attacks), 0)',
+    'ssg_accuracy': 'iif(player_ssg_attacks != 0, min(1, cast(player_ssg_hits as real) / player_ssg_attacks), 0)',
     'rl_damage_enemy': 'player_rl_damage_enemy',
     'rl_directs': 'player_rl_directs',
     'ga_taken': 'player_ga_taken',
@@ -860,13 +860,150 @@ def matches(database, after):
 
 # Update the "means" and "standard_deviations" tables.
 def normals(database):
-    # Create the tables if necessary.
-    database.executescript('CREATE TABLE IF NOT EXISTS means(server_region TEXT,' + ','.join(f'mean_{key} REAL' for key in STATS.keys()) + ',PRIMARY KEY(server_region));')
-    database.executescript('CREATE TABLE IF NOT EXISTS standard_deviations(server_region TEXT,' + ','.join(f'standard_deviation_{key} REAL' for key in STATS.keys()) + ',PRIMARY KEY(server_region));')
+    # Create the "means" table if necessary.
+    database.executescript(f'''
+        CREATE TABLE IF NOT EXISTS means (
+            server_region TEXT,
+            {','.join(f'mean_{key} REAL' for key in STATS.keys())},
+            PRIMARY KEY(server_region)
+        );
+    ''')
 
-    # Populate the tables.
-    database.executescript('INSERT OR REPLACE INTO means SELECT server_region,' + ','.join(f'avg({value})' for value in STATS.values()) + ' FROM servers NATURAL JOIN matches NATURAL JOIN players GROUP BY server_region;')
-    database.executescript('INSERT OR REPLACE INTO standard_deviations SELECT server_region,' + ','.join(f'sqrt(avg(pow(({value})-mean_{key},2)))' for key,value in STATS.items()) + ' FROM servers NATURAL JOIN matches NATURAL JOIN players NATURAL JOIN means GROUP BY server_region;')
+    # Create the "standard_deviations" table if necessary.
+    database.executescript(f'''
+        CREATE TABLE IF NOT EXISTS standard_deviations (
+            server_region TEXT,
+            {','.join(f'standard_deviation_{key} REAL' for key in STATS.keys())},
+            PRIMARY KEY(server_region)
+        );
+    ''')
+
+    # NOTE: Only use well-formed matches: deathmatch mode 1, teamplay mode 2,
+    # 20 minute time limit, 8 total players, two teams of 4, full duration.
+    # Match duration as reported by the hub is bugged so we use total quads
+    # taken to decide when a match was completed.
+
+    # Populate the "means" table.
+    database.executescript(f'''
+        with
+            teams as (
+                select
+                    match_id,
+                    player_team,
+                    count(*) as team_size,
+                    sum(player_quad_taken) as team_quad_taken
+                from
+                    players
+                group by
+                    match_id,
+                    player_team
+            ),
+            totals as (
+                select
+                    match_id,
+                    count(*) as total_teams,
+                    sum(team_size) as total_players,
+                    sum(team_quad_taken) as total_quad_taken
+                from
+                    teams
+                group by
+                    match_id
+            )
+        insert or replace into
+            means
+        select
+            server_region,
+            {','.join(f'avg({value})' for value in STATS.values())}
+        from
+            matches
+                natural join
+            players
+                natural join
+            servers
+                natural join
+            teams
+                natural join
+            totals
+        where
+            match_deathmatch_mode = 1
+                and
+            match_teamplay_mode = 2
+                and
+            match_time_limit_mins = 20
+                and
+            team_size = 4
+                and
+            total_teams = 2
+                and
+            total_players = 8
+                and
+            total_quad_taken >= 20
+        group by
+            server_region
+        ;
+    ''')
+
+    # Populate the "standard_deviations" table.
+    database.executescript(f'''
+        with
+            teams as (
+                select
+                    match_id,
+                    player_team,
+                    count(*) as team_size,
+                    sum(player_quad_taken) as team_quad_taken
+                from
+                    players
+                group by
+                    match_id,
+                    player_team
+            ),
+            totals as (
+                select
+                    match_id,
+                    count(*) as total_teams,
+                    sum(team_size) as total_players,
+                    sum(team_quad_taken) as total_quad_taken
+                from
+                    teams
+                group by
+                    match_id
+            )
+        insert or replace into
+            standard_deviations
+        select
+            server_region,
+            {','.join(f'sqrt(avg(pow(({value})-mean_{key},2)))' for key,value in STATS.items())}
+        from
+            matches
+                natural join
+            means
+                natural join
+            players
+                natural join
+            servers
+                natural join
+            teams
+                natural join
+            totals
+        where
+            match_deathmatch_mode = 1
+                and
+            match_teamplay_mode = 2
+                and
+            match_time_limit_mins = 20
+                and
+            team_size = 4
+                and
+            total_teams = 2
+                and
+            total_players = 8
+                and
+            total_quad_taken >= 20
+        group by
+            server_region
+        ;
+    ''')
 
 # Create a closure to compute player scores in a given region.
 def scorer(database, server_region):
@@ -891,27 +1028,27 @@ def scorer(database, server_region):
 
         # How important is it to maximize player efficiency?
         if player.frags + player.deaths != 0:
-            score = score + zscore(player.frags / (player.frags + player.deaths), 'efficiency') * 6.867
+            score = score + zscore(max(0, player.frags / (player.frags + player.deaths)), 'efficiency') * 6.867
 
         # How important is it to maximize RL accuracy?
         if player.rl_attacks != 0:
-            score = score + zscore(player.rl_virtual / player.rl_attacks, 'rl_accuracy') * 5.125
+            score = score + zscore(min(1, player.rl_virtual / player.rl_attacks), 'rl_accuracy') * 5.125
 
         # How important is it to maximize LG accuracy?
         if player.lg_attacks != 0:
-            score = score + zscore(player.lg_hits / player.lg_attacks, 'lg_accuracy') * 6.267
+            score = score + zscore(min(1, player.lg_hits / player.lg_attacks), 'lg_accuracy') * 6.267
 
         # How important is it to maximize GL accuracy?
         if player.gl_attacks != 0:
-            score = score + zscore(player.gl_virtual / player.gl_attacks, 'gl_accuracy') * 2.688
+            score = score + zscore(min(1, player.gl_virtual / player.gl_attacks), 'gl_accuracy') * 2.688
 
         # How important is it to maximize SG accuracy?
         if player.sg_attacks != 0:
-            score = score + zscore(player.sg_hits / player.sg_attacks, 'sg_accuracy') * 6.5
+            score = score + zscore(min(1, player.sg_hits / player.sg_attacks), 'sg_accuracy') * 6.5
 
         # How important is it to maximize SSG accuracy?
         if player.ssg_attacks != 0:
-            score = score + zscore(player.ssg_hits / player.ssg_attacks, 'ssg_accuracy') * 4.938
+            score = score + zscore(min(1, player.ssg_hits / player.ssg_attacks), 'ssg_accuracy') * 4.938
 
         # How important is it to maximize RL damage?
         score = score + zscore(player.rl_damage_enemy, 'rl_damage_enemy') * 5.625
@@ -1010,7 +1147,66 @@ def ratings(database, after):
     # Create the table if necessary.
     database.executescript('CREATE TABLE IF NOT EXISTS ratings(server_region TEXT, player_name TEXT, rating_mu REAL, rating_sigma REAL, PRIMARY KEY(server_region, player_name));')
 
-    for match_id, server_region in database.execute('SELECT match_id, server_region FROM matches NATURAL JOIN servers WHERE match_date > ? ORDER BY match_date ASC', (after,)):
+    # Get an iterator over the subset of well-formed match records.
+    rows = database.execute(f'''
+        with
+            teams as (
+                select
+                    match_id,
+                    player_team,
+                    count(*) as team_size,
+                    sum(player_quad_taken) as team_quad_taken
+                from
+                    players
+                group by
+                    match_id,
+                    player_team
+            ),
+            totals as (
+                select
+                    match_id,
+                    count(*) as total_teams,
+                    sum(team_size) as total_players,
+                    sum(team_quad_taken) as total_quad_taken
+                from
+                    teams
+                group by
+                    match_id
+            )
+        select
+            match_id,
+            server_region
+        from
+            matches
+                natural join
+            players
+                natural join
+            servers
+                natural join
+            teams
+                natural join
+            totals
+        where
+            match_date > ?
+                and
+            match_deathmatch_mode = 1
+                and
+            match_teamplay_mode = 2
+                and
+            match_time_limit_mins = 20
+                and
+            team_size = 4
+                and
+            total_teams = 2
+                and
+            total_players = 8
+                and
+            total_quad_taken >= 20
+        order by
+            match_date asc
+    ''', (after,))
+
+    for match_id, server_region in rows:
         # Get a list of players.
         players = map(Player._make, database.execute(f'SELECT {','.join(SCORE_COLUMNS)} FROM players WHERE match_id=?', (match_id,)))
 
@@ -1041,8 +1237,8 @@ def json(database):
         for region, in database.execute('SELECT DISTINCT server_region from ratings'):
             region_ratings_count, = database.execute('SELECT count(*) FROM ratings WHERE server_region=?', (region,)).fetchone()
             stream.write(f'{{"name":"{region}","ratings":[')
-            for player, rating, plus_minus, matches in database.execute('SELECT player_name, rating_mu, rating_sigma, count(*) FROM players NATURAL JOIN matches NATURAL JOIN ratings NATURAL JOIN servers WHERE server_region=? GROUP BY player_name', (region,)):
-                stream.write(f'["{player.replace('\\', '\\\\')}",{round(rating)},{round(plus_minus)},{matches}]')
+            for player, rating, plus_minus, matches, last_played in database.execute('SELECT player_name, rating_mu, rating_sigma, count(*), max(match_date) FROM players NATURAL JOIN matches NATURAL JOIN ratings NATURAL JOIN servers WHERE server_region=? GROUP BY player_name', (region,)):
+                stream.write(f'["{player.replace('\\', '\\\\')}",{round(rating)},{round(plus_minus)},{matches},"{last_played}"]')
                 region_ratings_count -= 1
                 if region_ratings_count > 0:
                     stream.write(',')

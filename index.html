@@ -300,6 +300,10 @@
                     <label for="matchesMinFilter">Matches Minimum:</label>
                     <input type="number" id="matchesMinFilter" min="1" value="50">
                 </div>
+                <div class="filter-group">
+                    <label for="playedSinceFilter">Played Since:</label>
+                    <input type="date" id="playedSinceFilter">
+                </div>
             </div>
         </div>
     </header>
@@ -315,8 +319,21 @@
         let currentSortColumn = 'rating';
         let currentSortDirection = 'desc';
 
+        // Return a "YYYY-MM-DD" string for a Date object in local time
+        function toLocalDateString(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
         // Load data and initialize the application
         window.addEventListener('DOMContentLoaded', () => {
+            // Default "Played Since" to today minus 90 days in local time
+            const defaultDate = new Date();
+            defaultDate.setDate(defaultDate.getDate() - 90);
+            document.getElementById('playedSinceFilter').value = toLocalDateString(defaultDate);
+
             fetchData();
             setupEventListeners();
         });
@@ -349,6 +366,7 @@
             document.getElementById('regionFilter').addEventListener('input', renderTables);
             document.getElementById('playerFilter').addEventListener('input', renderTables);
             document.getElementById('matchesMinFilter').addEventListener('input', renderTables);
+            document.getElementById('playedSinceFilter').addEventListener('input', renderTables);
         }
 
         // Update timestamp from data
@@ -363,7 +381,7 @@
                 hour: '2-digit',
                 minute: '2-digit',
                 //second: '2-digit',
-                //timeZoneName: 'short'
+                timeZoneName: 'short'
             };
 
             document.getElementById('lastUpdate').textContent =
@@ -380,6 +398,11 @@
             const regionFilter = document.getElementById('regionFilter').value;
             const playerFilter = document.getElementById('playerFilter').value;
             const matchesMinFilter = parseInt(document.getElementById('matchesMinFilter').value) || 1;
+
+            // Parse the "Played Since" filter as the start of the selected day in local time.
+            // "YYYY-MM-DD" + "T00:00:00" (no timezone suffix) → local midnight.
+            const playedSinceValue = document.getElementById('playedSinceFilter').value;
+            const playedSinceThreshold = playedSinceValue ? new Date(`${playedSinceValue}T00:00:00`) : null;
 
             let validRegionFilter = true;
             let regionFilterRegex;
@@ -408,11 +431,19 @@
 
                 // Filter players based on criteria
                 const filteredRatings = region.ratings.filter(player => {
-                    const [playerName, rating, plusMinus, matches] = player;
+                    const [playerName, rating, plusMinus, matches, lastMatchTime] = player;
 
                     // Filter by matches minimum
                     if (matches < matchesMinFilter) {
                         return false;
+                    }
+
+                    // Filter by played since date
+                    if (playedSinceThreshold) {
+                        const lastMatchDate = new Date(lastMatchTime);
+                        if (lastMatchDate < playedSinceThreshold) {
+                            return false;
+                        }
                     }
 
                     // Filter by player name if filter is valid

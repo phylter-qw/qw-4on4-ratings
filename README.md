@@ -289,29 +289,37 @@ Export regional rankings to the file `data.json` in the working directory, using
           },
           "ratings": {
             "type": "array",
+            "description": "List of rating entries",
             "items": {
               "type": "array",
-              "minItems": 4,
-              "maxItems": 4,
-              "items": [
+              "description": "One rating entry as a fixed-position array: [name, sigma, mu, count, last-played]",
+              "minItems": 5,
+              "maxItems": 5,
+              "prefixItems": [
                 {
                   "type": "string",
                   "description": "Player name"
                 },
                 {
-                  "type": "integer",
-                  "description": "Player rating sigma"
+                  "type": "number",
+                  "description": "Player rating sigma (uncertainty)"
+                },
+                {
+                  "type": "number",
+                  "description": "Player rating mu (mean)"
                 },
                 {
                   "type": "integer",
-                  "description": "Player rating mu"
-                },
-                {
-                  "type": "integer",
+                  "minimum": 0,
                   "description": "Number of games played"
+                },
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "ISO 8601 timestamp of last game played (with timezone)"
                 }
               ],
-              "description": "One rating entry: [name, sigma, mu, count]"
+              "items": false
             }
           }
         },
