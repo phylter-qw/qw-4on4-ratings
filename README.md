@@ -255,9 +255,10 @@ The table used to store the ratings has the following schema:
 CREATE TABLE ratings(
     server_region TEXT,
     player_name TEXT,
+    rating_date TEXT,
     rating_mu REAL,
     rating_sigma REAL,
-    PRIMARY KEY(server_region, player_name)
+    PRIMARY KEY(server_region, player_name, rating_date)
 );
 ```
 
@@ -292,7 +293,7 @@ Export regional rankings to the file `data.json` in the working directory, using
             "description": "List of rating entries",
             "items": {
               "type": "array",
-              "description": "One rating entry as a fixed-position array: [name, sigma, mu, count, last-played]",
+              "description": "One rating entry as a fixed-position array",
               "minItems": 5,
               "maxItems": 5,
               "prefixItems": [
@@ -301,12 +302,12 @@ Export regional rankings to the file `data.json` in the working directory, using
                   "description": "Player name"
                 },
                 {
-                  "type": "number",
-                  "description": "Player rating sigma (uncertainty)"
+                  "type": "integer",
+                  "description": "Player rating mu (rounded)"
                 },
                 {
-                  "type": "number",
-                  "description": "Player rating mu (mean)"
+                  "type": ["integer", "null"],
+                  "description": "Prior player rating mu (rounded)"
                 },
                 {
                   "type": "integer",

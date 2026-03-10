@@ -15,6 +15,9 @@ import socket, select, time
 # For calculating ratings.
 import trueskill, collections, re
 
+# For working with dates.
+from datetime import datetime, timedelta
+
 # Dictionary mapping countries to regions.
 REGIONS = {
     'AF': 'Asia',
@@ -937,7 +940,7 @@ def normals(database):
                 and
             total_players = 8
                 and
-            total_quad_taken >= 20
+            total_quad_taken = 20
         group by
             server_region
         ;
@@ -999,7 +1002,7 @@ def normals(database):
                 and
             total_players = 8
                 and
-            total_quad_taken >= 20
+            total_quad_taken = 20
         group by
             server_region
         ;
@@ -1145,7 +1148,7 @@ def ratings(database, after):
     environment = trueskill.TrueSkill(mu=1500, sigma=500, beta=250, tau=5, draw_probability=0)
 
     # Create the table if necessary.
-    database.executescript('CREATE TABLE IF NOT EXISTS ratings(server_region TEXT, player_name TEXT, rating_mu REAL, rating_sigma REAL, PRIMARY KEY(server_region, player_name));')
+    database.executescript('CREATE TABLE IF NOT EXISTS ratings(server_region TEXT, player_name TEXT, rating_date TEXT, rating_mu REAL, rating_sigma REAL, PRIMARY KEY(server_region, player_name, rating_date));')
 
     # Get an iterator over the subset of well-formed match records.
     rows = database.execute(f'''
@@ -1175,6 +1178,7 @@ def ratings(database, after):
             )
         select
             match_id,
+            match_date,
             server_region
         from
             matches
@@ -1201,12 +1205,12 @@ def ratings(database, after):
                 and
             total_players = 8
                 and
-            total_quad_taken >= 20
+            total_quad_taken = 20
         order by
             match_date asc
     ''', (after,))
 
-    for match_id, server_region in rows:
+    for match_id, match_date, server_region in rows:
         # Get a list of players.
         players = map(Player._make, database.execute(f'SELECT {','.join(SCORE_COLUMNS)} FROM players WHERE match_id=?', (match_id,)))
 
@@ -1216,18 +1220,49 @@ def ratings(database, after):
         # Build a list of rating groups.
         rating_groups = []
         for player in players:
-            row = database.execute('SELECT rating_mu, rating_sigma FROM ratings WHERE server_region=? AND player_name=?', (server_region, player.name)).fetchone()
+            row = database.execute(
+                '''
+                WITH
+                    player_ratings AS (
+                        SELECT
+                            rating_mu,
+                            rating_sigma,
+                            unixepoch(?) - unixepoch(rating_date) as date_delta
+                        FROM
+                            ratings
+                        WHERE
+                            server_region=?
+                                AND
+                            player_name=?
+                    )
+                SELECT
+                    rating_mu,
+                    rating_sigma
+                FROM
+                    player_ratings
+                WHERE
+                    date_delta > 0
+                ORDER BY
+                    date_delta asc
+                LIMIT 1
+                ''',
+                (match_date, server_region, player.name)
+            ).fetchone()
             if row is None:
                 rating = environment.create_rating()
             else:
                 rating = environment.create_rating(row[0], row[1])
             rating_groups.append((rating,))
 
+        # Calculate the date at the end of the match.
+        match_end_date = datetime.fromisoformat(match_date) + timedelta(minutes=20)
+        rating_date = match_end_date.isoformat()
+
         # Update the ratings.
         rating_groups = environment.rate(rating_groups)
         for group, player in zip(rating_groups, players):
             rating = group[0]
-            database.execute('INSERT OR REPLACE INTO ratings(server_region, player_name, rating_mu, rating_sigma) VALUES(?,?,?,?)', (server_region, player.name, rating.mu, rating.sigma))
+            database.execute('INSERT OR REPLACE INTO ratings(server_region, player_name, rating_date, rating_mu, rating_sigma) VALUES(?,?,?,?,?)', (server_region, player.name, rating_date, rating.mu, rating.sigma))
 
 # Generate a data.json for the website.
 def json(database):
@@ -1235,10 +1270,76 @@ def json(database):
         stream.write(f'{{"timestamp":"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}","regions":[')
         region_count, = database.execute('SELECT count(*) FROM (SELECT DISTINCT server_region FROM ratings)').fetchone()
         for region, in database.execute('SELECT DISTINCT server_region from ratings'):
-            region_ratings_count, = database.execute('SELECT count(*) FROM ratings WHERE server_region=?', (region,)).fetchone()
+            region_ratings_count, = database.execute('SELECT count(*) FROM (SELECT DISTINCT player_name FROM ratings WHERE server_region=?)', (region,)).fetchone()
             stream.write(f'{{"name":"{region}","ratings":[')
-            for player, rating, plus_minus, matches, last_played in database.execute('SELECT player_name, rating_mu, rating_sigma, count(*), max(match_date) FROM players NATURAL JOIN matches NATURAL JOIN ratings NATURAL JOIN servers WHERE server_region=? GROUP BY player_name', (region,)):
-                stream.write(f'["{player.replace('\\', '\\\\')}",{round(rating)},{round(plus_minus)},{matches},"{last_played}"]')
+            rows = database.execute(
+                '''
+                with
+                    indexed_ratings as (
+                        select
+                            player_name,
+                            rating_mu,
+                            rating_sigma,
+                            row_number() over (
+                                partition by player_name
+                                order by rating_date desc
+                            ) as rating_index
+                        from
+                            ratings
+                        where
+                            server_region=?
+                    ),
+                    current_ratings as (
+                        select
+                            player_name,
+                            rating_mu as current_rating_mu,
+                            rating_sigma as current_rating_sigma
+                        from
+                            indexed_ratings
+                        where
+                            rating_index=1
+                    ),
+                    prior_ratings as (
+                        select
+                            player_name,
+                            rating_mu as prior_rating_mu,
+                            rating_sigma as prior_rating_sigma
+                        from
+                            indexed_ratings
+                        where
+                            rating_index=2
+                    ),
+                    aggregates as (
+                        select
+                            player_name,
+                            max(match_date) as last_played_date,
+                            count(*) as total_matches_played
+                        from
+                            matches
+                                natural join
+                            players
+                                natural join
+                            servers
+                        where
+                            server_region=?
+                        group by
+                            player_name
+                    )
+                select
+                    player_name,
+                    current_rating_mu,
+                    current_rating_sigma,
+                    prior_rating_mu,
+                    prior_rating_sigma,
+                    total_matches_played,
+                    last_played_date
+                from
+                    current_ratings left join prior_ratings using (player_name) inner join aggregates using (player_name)
+                ''',
+                (region, region)
+            )
+            for player_name, current_rating_mu, current_rating_sigma, prior_rating_mu, prior_rating_sigma, total_matches_played, last_played_date in rows:
+                stream.write(f'["{player_name.replace('\\', '\\\\')}",{round(current_rating_mu - 3*current_rating_sigma)},{round(prior_rating_mu - 3*prior_rating_sigma) if prior_rating_mu is not None else 'null'},{total_matches_played},"{last_played_date}"]')
                 region_ratings_count -= 1
                 if region_ratings_count > 0:
                     stream.write(',')
