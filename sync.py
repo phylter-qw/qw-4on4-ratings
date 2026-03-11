@@ -1227,7 +1227,7 @@ def ratings(database, after):
                         SELECT
                             rating_mu,
                             rating_sigma,
-                            timediff(?, rating_date) as date_delta
+                            unixepoch(?) - unixepoch(rating_date) as date_delta
                         FROM
                             ratings
                         WHERE

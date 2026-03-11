@@ -52,7 +52,19 @@ if __name__ == '__main__':
             rows = database.execute(
                 '''
                 with
-                    ratings_indexed as (
+                    region_ratings as (
+                        select
+                            player_name,
+                            rating_date,
+                            rating_mu,
+                            rating_sigma,
+                            unixepoch(:prior_date) - unixepoch(rating_date) as rating_date_delta
+                        from
+                            ratings
+                        where
+                            server_region = :server_region
+                    ),
+                    region_ratings_indexed_by_date as (
                         select
                             player_name,
                             rating_mu,
@@ -60,43 +72,49 @@ if __name__ == '__main__':
                             row_number() over (
                                 partition by player_name
                                 order by rating_date desc
-                            ) as rating_date_recency_index,
+                            ) as rating_index
+                        from
+                            region_ratings
+                    ),
+                    region_ratings_indexed_by_date_delta as (
+                        select
+                            player_name,
+                            rating_mu,
+                            rating_sigma,
                             row_number() over (
                                 partition by player_name
-                                order by timediff(:prior_date, rating_date) asc
-                            ) as rating_date_distance_from_prior_index
+                                order by rating_date_delta asc
+                            ) as rating_index
                         from
-                            ratings
+                            region_ratings
                         where
-                            server_region = :server_region
-                                and
-                            timediff(:prior_date, rating_date) >= 0
+                            rating_date_delta >= 0
                     ),
-                    ratings_current as (
+                    region_ratings_current as (
                         select
                             player_name,
                             rating_mu as current_rating_mu,
                             rating_sigma as current_rating_sigma
                         from
-                            ratings_indexed
+                            region_ratings_indexed_by_date
                         where
-                            rating_date_recency_index = 1
+                            rating_index = 1
                     ),
-                    ratings_prior as (
+                    region_ratings_prior as (
                         select
                             player_name,
                             rating_mu as prior_rating_mu,
                             rating_sigma as prior_rating_sigma
                         from
-                            ratings_indexed
+                            region_ratings_indexed_by_date_delta
                         where
-                            rating_date_distance_from_prior_index = 1
+                            rating_index = 1
                     ),
-                    match_aggregates as (
+                    region_matches as (
                         select
                             player_name,
-                            max(match_date) as last_played_date,
-                            count() as total_matches_played
+                            count(*) as total_matches_played,
+                            max(match_date) as last_played_date
                         from
                             matches
                                 natural join
@@ -111,15 +129,15 @@ if __name__ == '__main__':
                 select
                     player_name,
                     cast(round(current_rating_mu - 3*current_rating_sigma) as integer) as current_rating,
-                    cast(round(prior_rating_mu - 3*prior_rating_sigma) as integer) as prior_rating,
+                    cast(round(prior_rating_mu - 3*prior_rating_sigma) as integer) prior_rating,
                     total_matches_played,
                     last_played_date
                 from
-                    ratings_current
+                    region_ratings_current
                         natural join
-                    ratings_prior
+                    region_ratings_prior
                         natural join
-                    match_aggregates
+                    region_matches
                 ''',
                 {'server_region': server_region, 'prior_date': prior_date}
             )
