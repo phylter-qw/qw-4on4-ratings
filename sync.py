@@ -1227,7 +1227,7 @@ def ratings(database, after):
                         SELECT
                             rating_mu,
                             rating_sigma,
-                            unixepoch(?) - unixepoch(rating_date) as date_delta
+                            timediff(?, rating_date) as date_delta
                         FROM
                             ratings
                         WHERE
@@ -1241,7 +1241,7 @@ def ratings(database, after):
                 FROM
                     player_ratings
                 WHERE
-                    date_delta > 0
+                    date_delta >= 0
                 ORDER BY
                     date_delta asc
                 LIMIT 1
@@ -1264,91 +1264,6 @@ def ratings(database, after):
             rating = group[0]
             database.execute('INSERT OR REPLACE INTO ratings(server_region, player_name, rating_date, rating_mu, rating_sigma) VALUES(?,?,?,?,?)', (server_region, player.name, rating_date, rating.mu, rating.sigma))
 
-# Generate a data.json for the website.
-def json(database):
-    with open('data.json', 'w') as stream:
-        stream.write(f'{{"timestamp":"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}","regions":[')
-        region_count, = database.execute('SELECT count(*) FROM (SELECT DISTINCT server_region FROM ratings)').fetchone()
-        for region, in database.execute('SELECT DISTINCT server_region from ratings'):
-            region_ratings_count, = database.execute('SELECT count(*) FROM (SELECT DISTINCT player_name FROM ratings WHERE server_region=?)', (region,)).fetchone()
-            stream.write(f'{{"name":"{region}","ratings":[')
-            rows = database.execute(
-                '''
-                with
-                    indexed_ratings as (
-                        select
-                            player_name,
-                            rating_mu,
-                            rating_sigma,
-                            row_number() over (
-                                partition by player_name
-                                order by rating_date desc
-                            ) as rating_index
-                        from
-                            ratings
-                        where
-                            server_region=?
-                    ),
-                    current_ratings as (
-                        select
-                            player_name,
-                            rating_mu as current_rating_mu,
-                            rating_sigma as current_rating_sigma
-                        from
-                            indexed_ratings
-                        where
-                            rating_index=1
-                    ),
-                    prior_ratings as (
-                        select
-                            player_name,
-                            rating_mu as prior_rating_mu,
-                            rating_sigma as prior_rating_sigma
-                        from
-                            indexed_ratings
-                        where
-                            rating_index=2
-                    ),
-                    aggregates as (
-                        select
-                            player_name,
-                            max(match_date) as last_played_date,
-                            count(*) as total_matches_played
-                        from
-                            matches
-                                natural join
-                            players
-                                natural join
-                            servers
-                        where
-                            server_region=?
-                        group by
-                            player_name
-                    )
-                select
-                    player_name,
-                    current_rating_mu,
-                    current_rating_sigma,
-                    prior_rating_mu,
-                    prior_rating_sigma,
-                    total_matches_played,
-                    last_played_date
-                from
-                    current_ratings left join prior_ratings using (player_name) inner join aggregates using (player_name)
-                ''',
-                (region, region)
-            )
-            for player_name, current_rating_mu, current_rating_sigma, prior_rating_mu, prior_rating_sigma, total_matches_played, last_played_date in rows:
-                stream.write(f'["{player_name.replace('\\', '\\\\')}",{round(current_rating_mu - 3*current_rating_sigma)},{round(prior_rating_mu - 3*prior_rating_sigma) if prior_rating_mu is not None else 'null'},{total_matches_played},"{last_played_date}"]')
-                region_ratings_count -= 1
-                if region_ratings_count > 0:
-                    stream.write(',')
-            stream.write(']}')
-            region_count -= 1
-            if region_count > 0:
-                stream.write(',')
-        stream.write(']}')
-
 if __name__ == '__main__':
     # Parse the command line.
     parser = argparse.ArgumentParser()
@@ -1357,7 +1272,6 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--matches', action='store_true', help='update the table of matches and players')
     parser.add_argument('-n', '--normals', action='store_true', help='update the table of means and standard deviations')
     parser.add_argument('-r', '--ratings', action='store_true', help='update the table of player ratings')
-    parser.add_argument('-j', '--json', action='store_true', help='generate JSON file with player ratings')
     parser.add_argument('-a', '--after', metavar='DATE', help='set past cutoff date for updates (ISO 8601 format)')
     args = parser.parse_args()
 
@@ -1389,11 +1303,6 @@ if __name__ == '__main__':
     if args.ratings:
         print('Updating ratings...')
         ratings(database, after)
-
-    # Update data.json.
-    if args.json:
-        print('Updating data.json')
-        json(database)
 
     # Commit changes to the database.
     database.commit()

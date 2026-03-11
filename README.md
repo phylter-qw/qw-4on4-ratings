@@ -303,11 +303,11 @@ Export regional rankings to the file `data.json` in the working directory, using
                 },
                 {
                   "type": "integer",
-                  "description": "Player rating mu (rounded)"
+                  "description": "Player rating"
                 },
                 {
-                  "type": ["integer", "null"],
-                  "description": "Prior player rating mu (rounded)"
+                  "type": "integer",
+                  "description": "Prior player rating"
                 },
                 {
                   "type": "integer",
@@ -334,10 +334,10 @@ Export regional rankings to the file `data.json` in the working directory, using
 
 # Usage
 
-The [sync.py](sync.py) script performs zero or more of the previously described operations, specified via switches on the command-line. There is only one positional argument, which is the path to the SQLite database.
+The [sync.py](sync.py) script synchronizes the local database with the hub, computing new normals and ratings as directed via switches on the command-line. There is only one positional argument: the path to the SQLite database.
 
 ```
-usage: sync.py [-h] [-s] [-m] [-n] [-r] [-j] [-a DATE] database
+usage: sync.py [-h] [-s] [-m] [-n] [-r] [-a DATE] database
 
 positional arguments:
   database          path to database file
@@ -348,8 +348,20 @@ options:
   -m, --matches     update the table of matches and players
   -n, --normals     update the table of means and standard deviations
   -r, --ratings     update the table of player ratings
-  -j, --json        generate JSON file with player ratings
   -a, --after DATE  set past cutoff date for updates (ISO 8601 format)
+```
+
+The [data.json.py](data.json.py) script exports ratings from the local database to a JSON file for publication. A timestamp can optionally be specified to use as the starting point for computing changes in ratings. There is only one positional argument: the path to the SQLite database.
+
+```
+usage: data.json.py [-h] [-p DATE] database
+
+positional arguments:
+  database          path to database file
+
+options:
+  -h, --help        show this help message and exit
+  -p, --prior DATE  prior update time (ISO 8601 format)
 ```
 
 Python dependencies are listed in the [requirements.txt](requirements.txt) file.

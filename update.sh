@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Exit on error.
+set -e
+
 # Load NVM if present.
 if [ -z "$NVM_DIR" ]; then
 	export NVM_DIR="$HOME/.nvm"
@@ -10,10 +13,15 @@ fi
 # Load python virtual environment if present.
 [ -f pyvenv.cfg ] && \. bin/activate
 
-# Update matches, ratings, JSON.
-python sync.py -mrj 4on4.db
+# Update matches, ratings.
+python sync.py -mr 4on4.db
 
-# Compress existing JSON file.
+# Generate a data.json.gz file.
+if [ -f dist/data.json.gz ]; then
+	python data.json.py -p `gzip -dkc dist/data.json.gz | jq .timestamp` 4on4.db
+else
+	python data.json.py 4on4.db
+fi
 gzip data.json
 
 # Compressed copy of database.
@@ -22,8 +30,8 @@ gzip -k 4on4.db
 # Move resources to public directory.
 mv data.json.gz 4on4.db.gz public
 
-# Build site.
-npm run build
-
 # Deploy site.
-npx ntl deploy --prod --dir dist
+if [ "$1" = "deploy" ]; then
+	npm run build
+	npx ntl deploy --prod --dir dist
+fi
