@@ -68,9 +68,9 @@ if __name__ == '__main__':
                         from
                             ratings
                         where
-                            server_region=:server_region
+                            server_region = :server_region
                                 and
-                            timediff(:prior_date, rating_date) > 0
+                            timediff(:prior_date, rating_date) >= 0
                     ),
                     ratings_current as (
                         select
@@ -104,7 +104,7 @@ if __name__ == '__main__':
                                 natural join
                             servers
                         where
-                            server_region=:server_region
+                            server_region = :server_region
                         group by
                             player_name
                     )
