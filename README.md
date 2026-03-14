@@ -20,7 +20,9 @@ Standard scores were then combined into *match scores* for each player by taking
 
 The [sync.py](sync.py) script synchronizes a local [SQLite](https://sqlite.org/) database with online information about servers, players, and matches. For every 4on4 match recorded on the hub, the players, statistics, and server information are processed and stored locally in tables. The content of these tables is subsequently used to calculate regional player ratings according to the method described above.
 
-The subsections below describe the various operations performed by the [sync.py](sync.py) script in more detail.
+The [data.json.py](data.json.py) script exports ratings from the local database to a JSON file for publication.
+
+The subsections below describe the various operations performed by these scripts in more detail.
 
 ## Update Servers
 
@@ -306,7 +308,7 @@ Export regional rankings to the file `data.json` in the working directory, using
                   "description": "Player rating"
                 },
                 {
-                  "type": "integer",
+                  "type": ["integer", "null"],
                   "description": "Prior player rating"
                 },
                 {
@@ -317,7 +319,7 @@ Export regional rankings to the file `data.json` in the working directory, using
                 {
                   "type": "string",
                   "format": "date-time",
-                  "description": "ISO 8601 timestamp of last game played (with timezone)"
+                  "description": "Date of the last played match"
                 }
               ],
               "items": false
@@ -372,7 +374,7 @@ If you wish to run this project locally, you can save yourself time (and bandwid
 
 Included in this project is a minimal (naive) website that displays tables of player rankings for the various regions with controls for filtering the output. It uses vanilla Javascript and is entirely contained within the [index.html](index.html) file.
 
-Clients fetch content for the tables from a compressed JSON file stored on the server, which was created at build time using the [Export JSON](#export-json) operation of the [sync.py](sync.py) script.
+Clients fetch content for the tables from a compressed JSON file stored on the server, which was created at build time using the [Export JSON](#export-json) operation of the [data.json.py](data.json.py) script.
 
 Currently, the site is hosted by [Netlify](https://www.netlify.com/). It can be accessed at <https://qw-4on4-ratings.netlify.app>.
 

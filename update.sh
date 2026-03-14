@@ -18,7 +18,7 @@ python sync.py -mr 4on4.db
 
 # Generate a data.json.gz file.
 if [ -f dist/data.json.gz ]; then
-	python data.json.py -p `gzip -dkc dist/data.json.gz | jq -r .timestamp` 4on4.db
+	python data.json.py -w `gzip -dkc dist/data.json.gz | jq -r .timestamp` 4on4.db
 else
 	python data.json.py 4on4.db
 fi
